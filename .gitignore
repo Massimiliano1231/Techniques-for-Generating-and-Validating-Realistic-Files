@@ -1,0 +1,32 @@
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+# Python/cache/venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# PARTE_SPERIMENTALE datasets and generated files (do not commit)
+PARTE_SPERIMENTALE/data/detector/datasets/
+PARTE_SPERIMENTALE/data/generator/generated_files/
+
+# PARTE_SPERIMENTALE outputs from scripts
+PARTE_SPERIMENTALE/data/detector/derived/
+PARTE_SPERIMENTALE/data/detector/csv_utils/
+PARTE_SPERIMENTALE/data/generator/matrices/
+PARTE_SPERIMENTALE/data/generator/csv/
+PARTE_SPERIMENTALE/data/generator/random_flood_4formats/

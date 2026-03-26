@@ -1,0 +1,285 @@
+Slide 1 — Introduzione
+
+"Il presente lavoro si colloca nell’ambito della sicurezza informatica, e in particolare nello studio di tecniche di mitigazione contro il ransomware.
+
+In questa presentazione mostrerò il problema affrontato, il metodo proposto e i risultati ottenuti."
+
+
+
+
+
+Slide 2 — Ransomware e Data Flooding
+
+"Il ransomware è una tipologia di malware.
+
+Esistono diverse varianti di ransomware. Tra queste troviamo, ad esempio, i crypto-ransomware, che sono quelli che interessano il nostro lavoro.
+Questa tipologia di malware cifra i file dell’utente e successivamente richiede il pagamento di un riscatto per ottenere la chiave di decrittazione.
+
+Tra le varie tecniche di difesa proposte in letteratura vi è il data flooding.
+
+Questa tecnica si basa su un’idea piuttosto semplice: quando viene rilevato un attacco ransomware, il sistema genera un grande numero di
+file esca nel file system.
+
+In questo modo il ransomware viene indotto a cifrare anche questi file esca, rallentando l’attacco e riducendo il danno sui file reali.
+
+Un tool che implementa queste tecniche è Ranflood, che mette a disposizione diverse strategie: Random, On-the-fly e Shadow.
+
+In particolare, la strategia Random ha lo scopo di creare moltissimi file esca completamente casuali.
+Questi file sono sostanzialmente sequenze casuali di byte, che vengono poi inserite all’interno di un determinato formato."
+
+
+
+
+
+
+Slide 3 — Problema dei file casuali
+
+"Tuttavia l’approccio basato su file completamente casuali presenta un problema.
+
+Alcuni lavori in letteratura mostrano infatti come file casuali possano essere individuati e ignorati da alcuni ransomware.
+Nel dettaglio, file che presentano caratteristiche anomale, come ad esempio un’entropia molto elevata, possono essere facilmente
+identificati ed esclusi durante il processo di cifratura tramite le euristiche del ransomware.
+
+Ne consegue quindi la necessità di generare file esca credibili, cioè file che siano statisticamente simili ai file reali.
+
+È importante sottolineare che in questo lavoro l’obiettivo non è la coerenza semantica del file, ma piuttosto la compatibilità
+statistica rispetto ai file reali."
+
+
+
+Slide 4 — Rappresentazione statistica dei file
+
+"Per poter generare file esca verosimili è necessario prima definire cosa significhi verosimiglianza, cioè quando un file può essere
+considerato abbastanza simile a un file reale.
+
+Per farlo servono metodi che permettano di confrontare i file tra loro, e quindi di confrontare i byte che li compongono.
+
+Il primo strumento introdotto è la Byte Frequency Distribution, cioè un vettore di 256 elementi che rappresenta la distribuzione
+statistica dei valori di byte all’interno di un file, mostrando quante volte compare ciascun byte rispetto al totale.
+
+Questa rappresentazione permette quindi di analizzare la distribuzione dei byte di un file e confrontarla con quella di altri file.
+
+Tuttavia la Byte Frequency Distribution ha un limite: considera solo la frequenza dei singoli byte e non cattura le relazioni sequenziali
+tra byte consecutivi, che spesso sono importanti per descrivere la struttura interna di un file.
+
+Per superare questo problema si utilizzano le rappresentazioni N-gram, nelle quali si considerano sequenze di N byte consecutivi come unità di analisi.
+In questo modo è possibile catturare anche le dipendenze tra byte consecutivi.
+
+Un ulteriore problema riguarda la struttura dei formati analizzati in questo lavoro, come PDF, DOCX e JPG, che contengono spesso porzioni di
+dati compressi e quindi altamente entropiche.
+
+Queste sezioni tendono ad appiattire la distribuzione dei byte, rendendo più difficile distinguere i file.
+
+Per questo motivo si propone di analizzare solo le porzioni strutturali del file, come header, metadati e marcatori di formato, che contengono
+informazioni più significative.
+
+
+
+
+
+slide 5) metriche
+
+Una volta ottenute queste rappresentazioni statistiche, è necessario utilizzare metriche quantitative per confrontarle.
+
+Nel lavoro sono state utilizzate diverse metriche:
+
+Entropia di Shannon, che misura il grado di casualità della distribuzione dei byte
+
+Jensen-Shannon Divergence, che misura la divergenza tra due distribuzioni
+
+Cosine Similarity, che misura la similarità tra due distribuzioni
+
+Total Variation Distance, che misura la differenza complessiva tra due distribuzioni.
+
+Queste metriche ci permettono quindi di confrontare le distribuzioni di byte dei file.
+
+
+
+
+
+
+
+Slide 7 — Costruzione del detector
+
+"Una volta ottenuti gli strumenti per confrontare i file tra loro, il passo successivo è implementare un sistema che, dato un file, sia in grado
+di stabilire se il file è verosimile oppure no.
+
+è stato quindi sviluppato un sistema di detection.
+
+Per costruirlo sono stati creati dataset contenenti sia file reali sia file casuali.
+
+I file reali sono stati raccolti da diversi dataset pubblici, mentre i file casuali sono stati generati tramite Ranflood.
+
+Una volta ottenuti i dataset, è necessario calcolare il profilo statistico medio per ciascun formato.
+
+Per farlo sono stati calcolati i bigrammi dei file reali, e successivamente è stata calcolata la media di questi vettori.
+
+Il vettore risultante rappresenta quindi la firma media del formato, cioè la distribuzione statistica tipica dei byte per quel tipo di file.
+
+Questa firma media viene utilizzata come riferimento: un file la cui distribuzione è sufficientemente simile alla firma media può essere considerato realistico.
+
+A questo punto, per ciascun file è possibile calcolare la distanza tra la sua distribuzione e la firma media utilizzando le metriche viste in precedenza.
+
+Rimane però da stabilire quali valori possano essere considerati accettabili per definire un file come verosimile.
+Bisogna quindi stabilire delle soglie di verosimiglianza.
+
+Per questo motivo è stata definita una funzione obiettivo, che è stata poi ottimizzata tramite un algoritmo di ottimizzazione, con lo scopo di trovare
+le soglie ideali che minimizzino i falsi positivi e i falsi negativi, ovvero rispettivamente
+file casuali classificati come realistici, e file reali classificati come non realistici.
+
+Un ulteriore aspetto da considerare è il rischio di overfitting.
+Poiché i dataset utilizzati non sono enormi, esiste la possibilità che il detector impari a funzionare bene sui dati di training ma non generalizzi
+altrettanto bene su dati nuovi.
+
+Per ridurre questo rischio è stata utilizzata la cross-validation, la quale 
+è una tecnica statistica che consiste nel suddividere il dataset in diversi sottoinsiemi, detti fold.
+Il modello viene addestrato su alcuni fold e testato su quello rimanente, ripetendo il processo più volte.
+
+Nel nostro caso il dataset è stato suddiviso in 3 fold."
+
+
+
+
+
+Slide 8 — Valutazione del detector
+
+"Una volta implementato il detector, è necessario valutarne le prestazioni, ovvero verificare la sua capacità di
+distinguere correttamente file reali da file puramente casuali.
+
+I risultati mostrati rappresentano un’aggregazione delle valutazioni ottenute sui tre
+fold della cross-validation.
+
+Dai risultati emerge come il detector raggiunga un’accuratezza superiore al 98% per tutti i
+formati analizzati.
+
+In particolare, si osserva un numero molto ridotto di falsi positivi, che rappresenta un
+aspetto voluto: in questo contesto, infatti, è preferibile accettare qualche falso negativo in più, 
+piuttosto che classificare come realistici file che in realtà sono casuali.
+infatti, un file viene considerato realistico solo se risulta tale per tutte le metriche considerate;
+è quindi sufficiente che una singola metrica lo identifichi come anomalo perché venga classificato come non realistico
+
+Per valutare inoltre la capacità del sistema di generalizzare su dati mai visti, è stata
+condotta un’ulteriore analisi su dataset esterni, non utilizzati durante l’addestramento.
+
+Nel dettaglio, sono stati analizzati circa 109.000 file JPG reali e 78.000 file di testo reali.
+Il detector ha classificato correttamente il 97,5% dei file JPG e il 99,32% dei file TXT, confermando
+quindi la buona capacità di generalizzazione del sistema sviluppato."
+
+
+
+
+
+
+
+
+Slide 9 — Generazione dei file
+
+"Una volta costruito il detector, il passo successivo è progettare il sistema di generazione dei file esca.
+
+L’idea alla base della generazione è quella di modellare la sequenza di byte di un file come un processo stocastico a tempo discreto,
+in cui ogni byte è rappresentato da una variabile aleatoria discreta.
+
+La generazione viene quindi modellata tramite una catena di Markov a tempo discreto di ordine uno,
+in cui la probabilità di osservare un byte dipende esclusivamente dal byte immediatamente precedente.
+
+Una catena di Markov è caratterizzata dalle probabilità di transizione tra i suoi stati.
+Nel nostro caso, lo spazio degli stati è costituito da tutti i possibili valori di byte, quindi ha cardinalità pari a 256.
+
+Le probabilità di transizione vengono quindi rappresentate tramite una matrice di transizione 
+P di dimensione 256×256, in cui ogni elemento rappresenta la probabilità di passare da un byte a un altro.
+
+Per costruire questa matrice, si parte da un insieme di file reali appartenenti allo stesso formato.
+Si analizzano le sequenze di byte e, per ogni coppia di byte consecutivi osservata, si incrementa un contatore associato a quella transizione.
+
+In questo modo si ottiene una matrice di conteggi, che viene successivamente normalizzata riga per riga.
+
+Questo processo viene ripetuto per ogni formato considerato.
+
+
+
+
+"Un aspetto importante riguarda l’efficienza del processo di generazione.
+
+Il campionamento diretto da una distribuzione discreta può essere effettuato utilizzando la distribuzione cumulativa,
+ma questo approccio ha complessità lineare rispetto al numero di stati.
+
+Nel nostro caso, lo spazio degli stati è limitato a 256 valori, quindi il costo per singolo campionamento è contenuto.
+Tuttavia, considerando la generazione di un elevato numero di file e la loro lunghezza, questo può diventare un collo di bottiglia computazionale.
+
+Per questo motivo è stato utilizzato l’Alias Method, una tecnica che consente di effettuare il campionamento in tempo costante.
+
+L’idea è quella di trasformare la distribuzione originale in una rappresentazione equivalente, basata su due strutture dati, due matrici prob e alias,
+che permettono di effettuare ogni estrazione di byte con un numero costante di operazioni.
+
+
+
+Slide 10 — Valutazione dei file generati
+
+"Una volta generati i file, è necessario verificare se questi risultano statisticamente simili ai file reali.
+
+A tal fine sono stati costruiti diversi dataset di dimensioni differenti, che hanno però mostrato un comportamento sostanzialmente consistente tra loro.
+
+Nel dettaglio, su un dataset composto da 100.000 file generati, il detector ha classificato come verosimili il 96,80% dei file.
+
+Questo risultato conferma l’efficacia del modello markoviano nel produrre file statisticamente compatibili con quelli reali."
+
+
+
+
+
+
+
+
+
+
+
+Slide 11 — Validazione esterna con Magika
+
+"Per valutare ulteriormente la qualità dei file generati, è stata condotta un’analisi utilizzando uno strumento esterno: Google Magika.
+
+Magika è un tool progettato per identificare il formato di un file indipendentemente dalla sua estensione, basandosi esclusivamente
+sull’analisi statistica del contenuto binario.
+
+Nel contesto di questo lavoro, Magika è stato utilizzato come strumento complementare al detector: se un file generato viene correttamente
+riconosciuto nel suo formato, significa che presenta caratteristiche statistiche coerenti con quel formato.
+
+Sono stati quindi effettuati diversi test, confrontando tre tipologie di file:
+file reali, file completamente casuali generati da Ranflood, e file generati dal sistema proposto.
+
+Per quanto riguarda i file reali, questi sono stati classificati correttamente nella quasi totalità dei casi.
+
+I file generati da Ranflood, invece, sono stati classificati in tutti i casi come formato sconosciuto, evidenziando come non presentino
+caratteristiche riconducibili a un formato reale.
+
+Nel caso dei file generati dal nostro sistema, l’esperimento è stato condotto su 100.000 file, suddivisi equamente tra i diversi formati.
+
+I risultati mostrano che i formati TXT e DOCX vengono riconosciuti correttamente nella quasi totalità dei casi.
+
+Per quanto riguarda invece i formati PDF e JPG, circa 8.500 file su 25.000 vengono classificati correttamente per ciascun formato.
+
+Questo risultato è coerente con la maggiore complessità strutturale di questi formati, che presentano vincoli sintattici più rigidi, come
+header ben definiti, marker obbligatori e sezioni binarie complesse, che non vengono esplicitamente modellati dal nostro approccio, basato
+su proprietà statistiche locali dei byte.
+
+
+
+
+Slide 12 — Conclusioni e sviluppi futuri
+
+"Per concludere, il sistema sviluppato è in grado di generare file esca statisticamente verosimili.
+
+Questa proprietà è stata validata sia tramite un sistema di rilevamento interno, sia attraverso una valutazione esterna
+con uno strumento indipendente come Magika.
+
+Dal punto di vista computazionale, il sistema risulta inoltre efficiente: la generazione e scrittura su disco di un file
+di lunghezza L ha costo lineare, e la generazione di N file ha quindi complessità O(N·L).
+
+Tuttavia, il lavoro presenta alcune limitazioni.
+
+La nozione di verosimiglianza adottata è definita nello spazio delle caratteristiche considerate, come le statistiche sugli
+n-gram e le porzioni strutturali dei file, e non garantisce né la correttezza semantica né la piena conformità agli standard dei formati.
+
+Per questo motivo, un possibile sviluppo futuro consiste nel testare il sistema direttamente contro euristiche di ransomware reali.
+
+Un’ulteriore direzione riguarda l’estensione del modello markoviano a ordini superiori, ad esempio ordine 2 o 3, per catturare
+dipendenze a più lungo raggio nel contenuto binario."
