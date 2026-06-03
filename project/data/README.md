@@ -1,7 +1,7 @@
 # Cartella Data
 
 Questa cartella non contiene dataset, file generati, CSV intermedi o matrici
-Markov, perche' questi file possono essere grandi o non distribuibili.
+Markov, perche' questi file possono essere grandi.
 
 L'unica cartella che bisogna preparare manualmente prima di eseguire la pipeline e':
 
