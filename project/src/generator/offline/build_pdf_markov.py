@@ -1,23 +1,33 @@
 import sys
+import argparse
 
 from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-sys.path.append(str(PROJECT_ROOT / "src" / "generator"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from data.datasets import DATASETS
-from markov.bigram_counter import init_counter, update_bigram_counts
-from markov.markov_builder import normalize_rows
-from formats.extractor_bytes import read_structural_pdf_bytes
+from generator.data.datasets import DATASETS
+from generator.markov.bigram_counter import init_counter, update_bigram_counts
+from generator.markov.markov_builder import normalize_rows
+from generator.formats.extractor_bytes import read_structural_pdf_bytes
 
 OUTPUT_DIR = PROJECT_ROOT / "data" / "generator" / "matrices"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Build the PDF Markov transition matrix.")
+    parser.add_argument("--dataset", default=DATASETS["pdf"]["real"])
+    parser.add_argument("--out_dir", default=str(OUTPUT_DIR))
+    return parser.parse_args()
 
 
 def main():
-    dataset_path = DATASETS["pdf"]["real"]
+    args = parse_args()
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dataset_path = args.dataset
     print(f"[+] Building PDF Markov model from: {dataset_path}")
 
     root = Path(dataset_path)
@@ -41,7 +51,7 @@ def main():
 
     P = normalize_rows(C)
 
-    out_path = OUTPUT_DIR / "P_pdf.npy"
+    out_path = out_dir / "P_pdf.npy"
     np.save(out_path, P)
 
     print(f"[+] Saved PDF Markov model to: {out_path}")

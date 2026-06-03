@@ -4,14 +4,15 @@ import sys
 import json
 import argparse
 import random
+from pathlib import Path
 from typing import List, Dict, Tuple
 
-# Aggiungi la cartella superiore al path per importare utils.*
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from data.datasets import DATASETS, get_format
-from io.io_utils import list_files
-from config.constants import EXTS
+from detector.data.datasets import DATASETS, get_format
+from detector.io.io_utils import list_files
+from detector.config.constants import EXTS
 
 
 def scan_all_files() -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
@@ -20,7 +21,7 @@ def scan_all_files() -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
     per costruire:
         real_by_fmt[fmt] = lista di path REAL
         rand_by_fmt[fmt] = lista di path RANDOM
-    Filtra anche usando get_format(p) per sicurezza.
+    Filtra anche usando get_format(p).
     """
     real_by_fmt = {}
     rand_by_fmt = {}
@@ -34,7 +35,6 @@ def scan_all_files() -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
         real_files = list_files(real_folder, wanted_exts)
         rand_files = list_files(rand_folder, wanted_exts)
 
-        # Filtro ulteriore di sicurezza
         real_files = [p for p in real_files if get_format(p) == fmt]
         rand_files = [p for p in rand_files if get_format(p) == fmt]
 
@@ -84,8 +84,8 @@ def build_kfold_splits(
     Costruisce k fold per ogni formato:
       splits[fmt] = {
         "folds": [
-          { "real": [...], "random": [...] },  # fold 0
-          { "real": [...], "random": [...] },  # fold 1
+          { "real": [...], "random": [...] },
+          { "real": [...], "random": [...] },
           ...
         ]
       }
@@ -99,11 +99,9 @@ def build_kfold_splits(
 
         print(f"[{fmt}] REAL = {len(real_files)}, RANDOM = {len(rand_files)}")
 
-        # Per avere shuffle indipendente per real e random, uso seed diversi ma derivati
         real_folds = make_k_folds(real_files, k_folds, seed + 13)
         rand_folds = make_k_folds(rand_files, k_folds, seed + 37)
 
-        # Piccolo log di riepilogo
         for i in range(k_folds):
             print(
                 f"    Fold {i}: REAL={len(real_folds[i])}, "

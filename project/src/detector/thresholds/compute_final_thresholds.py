@@ -61,7 +61,6 @@ def main():
                         "thr_highs": [],
                     }
 
-                # threshold (per tutte le metriche tranne entropy)
                 thr_str = row.get("threshold", "")
                 if thr_str not in ("", None):
                     try:
@@ -69,7 +68,6 @@ def main():
                     except ValueError:
                         pass
 
-                # banda low/high (per entropy)
                 low_str = row.get("thr_low", "")
                 high_str = row.get("thr_high", "")
                 if low_str not in ("", None):
@@ -87,9 +85,8 @@ def main():
         print("Nessun dato valido trovato negli input. Esco.")
         sys.exit(1)
 
-    # Calcolo media soglie
     results = []
-    json_struct = {}  # per eventuale JSON
+    json_struct = {}
 
     for (fmt, metric), info in sorted(data.items()):
         alpha = info["alpha"]
@@ -125,7 +122,6 @@ def main():
         }
         results.append(row)
 
-        # per JSON organizziamo per formato -> metric -> dict
         if fmt not in json_struct:
             json_struct[fmt] = {}
         json_struct[fmt][metric] = {
@@ -133,12 +129,10 @@ def main():
             "beta": beta,
             "threshold": thr_final,
         }
-        # aggiungo low/high solo se esistono
         if low_final != "" or high_final != "":
             json_struct[fmt][metric]["thr_low"] = low_final
             json_struct[fmt][metric]["thr_high"] = high_final
 
-    # Scrivo CSV finale
     out_dir = os.path.dirname(args.out_csv) or "."
     os.makedirs(out_dir, exist_ok=True)
 
@@ -152,7 +146,6 @@ def main():
 
     print(f"\nOK, soglie finali salvate in: {args.out_csv}")
 
-    # Scrivo JSON finale se richiesto
     if args.out_json:
         out_dir_json = os.path.dirname(args.out_json) or "."
         os.makedirs(out_dir_json, exist_ok=True)

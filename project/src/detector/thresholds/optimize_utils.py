@@ -1,8 +1,8 @@
 from scipy.optimize import dual_annealing
 import os
 import numpy as np
-from io.io_utils import load_scores
-from thresholds.objective import make_objective_default, make_objective_cosine, make_objective_entropy_band
+from detector.io.io_utils import load_scores
+from detector.thresholds.objective import make_objective_default, make_objective_cosine, make_objective_entropy_band
 import csv
 import json
 
@@ -47,7 +47,7 @@ def optimize_for_fold(fold_idx, input_csv, alpha, beta, out_csv, json_dir=""):
                 objective, fn_fp = make_objective_entropy_band(
                     scores_real, scores_rand, alpha, beta
                 )
-                bounds = [(lower, upper), (lower, upper)]  # low, high
+                bounds = [(lower, upper), (lower, upper)]
                 res = dual_annealing(objective, bounds=bounds, maxiter=200)
                 fn_best, fp_best, low_best, high_best = fn_fp(res.x)
                 best_threshold = None
@@ -108,7 +108,6 @@ def optimize_for_fold(fold_idx, input_csv, alpha, beta, out_csv, json_dir=""):
                     json.dump(row, jf, indent=2)
                 print(f"  -> JSON salvato in: {json_path}")
 
-    # Scrivi CSV per questo fold
     os.makedirs(os.path.dirname(out_csv) or ".", exist_ok=True)
     fieldnames = [
         "fold", "format", "metric", "alpha", "beta",

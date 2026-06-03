@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from config.constants import METRICS
+from detector.config.constants import METRICS
 
 
 

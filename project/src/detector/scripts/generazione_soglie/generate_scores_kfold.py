@@ -3,16 +3,15 @@ import os
 import argparse
 import csv
 import json
-import numpy as np
 
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.append(str(PROJECT_ROOT / "src" / "detector"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from io.io_utils import build_get_repr, compute_centroid, write_scores_for_group
-from config.constants import DEFAULT_KFOLD_JSON
+from detector.io.io_utils import build_get_repr, compute_centroid, write_scores_for_group
+from detector.config.constants import DEFAULT_KFOLD_JSON
 
 
 
@@ -56,26 +55,21 @@ def main():
     )
     args = ap.parse_args()
 
-    # Crea cartella output
     os.makedirs(args.out, exist_ok=True)
 
-    # Carica lo split K-fold dal JSON
     print(f"Carico split K-fold da: {args.kfold_json}")
     with open(args.kfold_json, "r", encoding="utf-8") as f:
         split_data = json.load(f)
 
-    # Determino K (numero di fold) guardando il primo formato
     some_fmt = next(iter(split_data.keys()))
     k_folds = len(split_data[some_fmt]["folds"])
     print(f"Trovati {k_folds} fold (K={k_folds}) nello split.")
 
-    # Prep funzione per rappresentazioni BFD/n-gram (cache condivisa tra tutti i fold)
     get_repr = build_get_repr(args.ngram, args.buckets)
 
     
     formats = ["pdf", "txt", "jpg", "docx"]
 
-    # Per ogni fold k: train = tutti gli altri, test = solo fold k
     for fold_idx in range(k_folds):
         print(f"\n===============================")
         print(f"   FOLD {fold_idx} (test = fold {fold_idx})")
@@ -87,8 +81,8 @@ def main():
         header = [
             "format",
             "file",
-            "class",           # "real" o "random"
-            "fold",            # indice del fold (0..K-1)
+            "class",
+            "fold",
             "jsd_mean",
             "tvd_mean",
             "l1_mean",
@@ -116,11 +110,9 @@ def main():
                     print(f"[{fmt}] fold_idx {fold_idx} fuori range, skip.")
                     continue
 
-                # TEST = solo fold corrente
                 real_test = folds[fold_idx].get("real", [])
                 rand_test = folds[fold_idx].get("random", [])
 
-                # TRAIN = unione di tutti gli altri fold
                 real_train = []
                 rand_train = []
                 for j, fd in enumerate(folds):
@@ -137,13 +129,11 @@ def main():
                     print(f"[{fmt}][fold={fold_idx}] ERRORE: nessun REAL_train, non posso calcolare il centroide, skip.")
                     continue
 
-                # Centroide calcolato SOLO su REAL_train
                 centroid = compute_centroid(real_train, get_repr)
                 if centroid is None:
                     print(f"[{fmt}][fold={fold_idx}] centroide non calcolato, skip.")
                     continue
 
-                # Metriche per TRAIN (real_train + random_train)
                 write_scores_for_group(
                     fmt=fmt,
                     real_paths=real_train,
@@ -155,7 +145,6 @@ def main():
                     fold_idx=fold_idx,
                 )
 
-                # Metriche per TEST (real_test + random_test)
                 write_scores_for_group(
                     fmt=fmt,
                     real_paths=real_test,

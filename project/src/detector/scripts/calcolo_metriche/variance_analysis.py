@@ -6,12 +6,11 @@ import os, sys, csv, numpy as np
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.append(str(PROJECT_ROOT / "src" / "detector"))
-from data.datasets import REAL_SUBDIRS
-from config.constants import NGRAM, BUCKETS, EXTS
-from core.bfd_features import ngram_bfd_from_path
-from core.metrics import jsd, tvd, l1_distance, cosine_sim, entropy
-from io.io_utils import list_files, build_get_repr
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+from detector.data.datasets import REAL_SUBDIRS
+from detector.config.constants import NGRAM, BUCKETS, EXTS
+from detector.core.metrics import jsd, tvd, l1_distance, cosine_sim, entropy
+from detector.io.io_utils import list_files, build_get_repr
 
 
 ROOT = str(PROJECT_ROOT / "data" / "detector" / "datasets")
@@ -35,7 +34,6 @@ def main():
     ensure_dir(PLOTS_DIR)
 
     metrics_names = ["JSD","TVD","L1","Cosine","Entropy"]
-    # nel CSV: mean, std, var, p95 di ogni metrica
     header = ["format"]
     for m in metrics_names:
         header += [f"{m}_mean", f"{m}_std", f"{m}_var", f"{m}_p95"]
@@ -61,7 +59,6 @@ def main():
 
         rep = build_get_repr(NGRAM, BUCKETS)
 
-        # --- 1) Calcolo firma media
         sum_vec = None
         count = 0
 
@@ -75,7 +72,6 @@ def main():
 
         mean_bfd = sum_vec / count
 
-        # --- 2) Calcolo distanze real-media ---
         d_jsd, d_tvd, d_l1, d_cos, ent_vals = [], [], [], [], []
 
         for f in tqdm(files, desc=f"{fmt}: distanze real-media"):
@@ -86,7 +82,6 @@ def main():
             d_cos.append(cosine_sim(p, mean_bfd))
             ent_vals.append(entropy(p))
 
-        # 4) Statistiche
         def stats(x):
             x = np.array(x, dtype=float)
             return float(np.mean(x)), float(np.std(x)), float(np.var(x)), float(np.percentile(x, 95))
@@ -104,7 +99,6 @@ def main():
 
         results[fmt] = res_fmt
 
-    # CSV
     csv_path = os.path.join(CSV_DIR, "variance_from_mean_summary.csv")
     with open(csv_path, "w", newline="") as f:
         w = csv.writer(f)
@@ -117,7 +111,6 @@ def main():
             w.writerow(row)
     print(f"\nCSV salvato: {csv_path}")
 
-    #  Grafici
     formats_order = list(results.keys())
     if not formats_order:
         print("Nessun formato processato, stop.")

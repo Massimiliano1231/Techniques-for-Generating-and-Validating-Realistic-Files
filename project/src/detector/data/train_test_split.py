@@ -7,11 +7,11 @@ import random
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-sys.path.append(str(PROJECT_ROOT / "src" / "detector"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from data.datasets import DATASETS, get_format
-from io.io_utils import list_files
-from config.constants import EXTS
+from detector.data.datasets import DATASETS, get_format
+from detector.io.io_utils import list_files
+from detector.config.constants import EXTS
 
 
 def scan_all_files():
@@ -35,7 +35,6 @@ def scan_all_files():
         real_files = list_files(real_folder, wanted_exts)
         rand_files = list_files(rand_folder, wanted_exts)
 
-        # filtro extra
         real_files = [p for p in real_files if get_format(p) == fmt]
         rand_files = [p for p in rand_files if get_format(p) == fmt]
 
@@ -50,7 +49,7 @@ def split_train_test(paths, train_ratio=0.8, seed=42):
     Esegue uno split train/test deterministico.
     """
     rnd = random.Random(seed)
-    paths = paths[:]  # copia
+    paths = paths[:]
     rnd.shuffle(paths)
 
     n = len(paths)

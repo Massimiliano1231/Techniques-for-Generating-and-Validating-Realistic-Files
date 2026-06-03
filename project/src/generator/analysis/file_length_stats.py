@@ -1,6 +1,5 @@
 import numpy as np
 from pathlib import Path
-import argparse
 from collections import defaultdict
 
 

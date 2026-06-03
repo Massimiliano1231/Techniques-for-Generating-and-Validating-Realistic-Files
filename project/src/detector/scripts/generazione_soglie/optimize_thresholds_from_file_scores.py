@@ -5,8 +5,8 @@ import os
 
 import numpy as np
 from scipy.optimize import dual_annealing
-from io.io_utils import load_scores
-from thresholds.objective import make_objective_default, make_objective_cosine, make_objective_entropy_band
+from detector.io.io_utils import load_scores
+from detector.thresholds.objective import make_objective_default, make_objective_cosine, make_objective_entropy_band
  
 
 
@@ -65,7 +65,7 @@ def main():
                 objective, fn_fp = make_objective_entropy_band(
                     scores_real, scores_rand, alpha, beta
                 )
-                bounds = [(lower, upper), (lower, upper)]  # low, high
+                bounds = [(lower, upper), (lower, upper)]
                 res = dual_annealing(objective, bounds=bounds, maxiter=200)
                 fn_best, fp_best, low_best, high_best = fn_fp(res.x)
                 best_threshold = None

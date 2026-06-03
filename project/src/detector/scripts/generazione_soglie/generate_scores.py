@@ -3,16 +3,15 @@ import os
 import argparse
 import csv
 import json
-import numpy as np
 
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.append(str(PROJECT_ROOT / "src" / "detector"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from config.constants import DEFAULT_SPLIT_JSON
-from io.io_utils import build_get_repr, compute_centroid, write_scores_for_group
+from detector.config.constants import DEFAULT_SPLIT_JSON
+from detector.io.io_utils import build_get_repr, compute_centroid, write_scores_for_group
 
 
 
@@ -53,25 +52,21 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # Crea cartella output
     os.makedirs(args.out, exist_ok=True)
 
     out_csv_train = os.path.join(args.out, "file_scores_centroid_train.csv")
     out_csv_test = os.path.join(args.out, "file_scores_centroid_test.csv")
 
-    # Carica lo split train/test dal JSON
     print(f"Carico split train/test da: {args.split_json}")
     with open(args.split_json, "r", encoding="utf-8") as f:
         split_data = json.load(f)
 
-    # Prep funzione per rappresentazioni BFD/n-gram
     get_repr = build_get_repr(args.ngram, args.buckets)
 
-    # Apri entrambi i CSV di output
     header = [
         "format",
         "file",
-        "class",           # "real" o "random"
+        "class",
         "jsd_mean",
         "tvd_mean",
         "l1_mean",
@@ -88,7 +83,6 @@ def main():
         w_train.writerow(header)
         w_test.writerow(header)
 
-        # Processa ciascun formato
         for fmt in ["pdf", "txt", "jpg", "docx"]:
             if fmt not in split_data:
                 print(f"[{fmt}] WARNING: formato non trovato nello split JSON, skip.")
@@ -108,13 +102,11 @@ def main():
                 print(f"[{fmt}] ERRORE: nessun REAL_train, non posso calcolare il centroide, skip.")
                 continue
 
-            # STEP B: centroide SOLO sui REAL_train
             centroid = compute_centroid(real_train, get_repr)
             if centroid is None:
                 print(f"[{fmt}] centroide non calcolato, skip.")
                 continue
 
-            # STEP C1: metriche per TRAIN (real_train + random_train) rispetto al centroide_train
             write_scores_for_group(
                 fmt=fmt,
                 real_paths=real_train,
@@ -126,7 +118,6 @@ def main():
                 fold_idx=0,
             )
 
-            # STEP C2: metriche per TEST (real_test + random_test) rispetto allo stesso centroide_train
             write_scores_for_group(
                 fmt=fmt,
                 real_paths=real_test,

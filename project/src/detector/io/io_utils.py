@@ -1,28 +1,41 @@
-import os, csv
-from pathlib import Path
-from config.constants import EXTS
-from data.datasets import DATASETS
-from config.constants import METRIC_COL_TO_NAME
-from tqdm import tqdm
-from config.constants import MIN_REAL, K_SIGMA, RANGES
-from core.bfd_features import ngram_bfd_from_path
-from core.metrics import jsd, tvd, cosine_sim, entropy
-import numpy as np
+import csv
+import os
 import json
+from pathlib import Path
+
+import numpy as np
+from tqdm import tqdm
+
+from detector.config.constants import EXTS, K_SIGMA, METRIC_COL_TO_NAME, MIN_REAL, RANGES
+from detector.core.bfd_features import ngram_bfd_from_path
+from detector.core.metrics import jsd, tvd, cosine_sim, entropy
+from detector.data.datasets import DATASETS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DETECTOR = PROJECT_ROOT / "data" / "detector"
 DATA_GENERATOR = PROJECT_ROOT / "data" / "generator"
 
+
 def list_files(folder, wanted_exts):
-    out=[]
-    if not os.path.isdir(folder): return out
-    for dp,_,fns in os.walk(folder):
+    out = []
+    if not os.path.isdir(folder):
+        return out
+    for dp, _, fns in os.walk(folder):
         for fn in fns:
-            low=fn.lower()
+            low = fn.lower()
             if any(low.endswith(e) for e in wanted_exts):
                 out.append(os.path.join(dp, fn))
     return out
+
+
+def _collect_files(root, paths, wanted_exts):
+    files = []
+    for path in paths:
+        full = Path(path) if os.path.isabs(str(path)) else Path(root) / path
+        if full.is_dir():
+            files.extend(str(p) for p in full.rglob("*") if p.is_file() and p.suffix.lower() in wanted_exts)
+    return files
+
 
 def load_thresholds(csv_path, fmt):
     with open(csv_path, newline="") as f:
@@ -60,48 +73,45 @@ def scan_your_layout(root):
     real = {fmt: [] for fmt in mapping}
     rand = {fmt: [] for fmt in mapping}
 
-    for fmt, d in mapping.items():
-        # REAL
-        for relpath in d["real"]:
-            full = os.path.join(root, relpath)
-            if os.path.isdir(full):
-                real[fmt] += [os.path.join(full, x) for x in os.listdir(full)]
-
-        # RANDOM
-        for relpath in d["rand"]:
-            full = os.path.join(root, relpath)
-            if os.path.isdir(full):
-                rand[fmt] += [os.path.join(full, x) for x in os.listdir(full)]
+    for fmt, paths in mapping.items():
+        real[fmt] = _collect_files(root, paths["real"], EXTS[fmt])
+        rand[fmt] = _collect_files(root, paths["rand"], EXTS[fmt])
 
     return real, rand
 
 
-
-import os
-
 def scan_your_layout_gen(root):
+    generated_root = DATA_GENERATOR / "generated_files"
     mapping = {
         "pdf": {
             "real": [
-                str(DATA_GENERATOR / "generated_files" / "pdf")
+                generated_root / "pdf",
+                generated_root / "pdf_generated",
+                generated_root / "all_generated",
             ],
             "rand": ["pdf data/pdf_ranflood"]
         },
         "txt": {
             "real": [
-                str(DATA_GENERATOR / "generated_files" / "txt")
+                generated_root / "txt",
+                generated_root / "txt_generated",
+                generated_root / "all_generated",
             ],
             "rand": ["txt data/txt_ranflood"]
         },
         "jpg": {
             "real": [
-                str(DATA_GENERATOR / "generated_files" / "jpg")
+                generated_root / "jpg",
+                generated_root / "jpg_generated",
+                generated_root / "all_generated",
             ],
             "rand": ["jpg data/jpg_ranflood"]
         },
         "docx": {
             "real": [
-                str(DATA_GENERATOR / "generated_files" / "docx")
+                generated_root / "docx",
+                generated_root / "docx_generated",
+                generated_root / "all_generated",
             ],
             "rand": ["docx data/docx_ranflood"]
         }
@@ -110,27 +120,9 @@ def scan_your_layout_gen(root):
     real = {fmt: [] for fmt in mapping}
     rand = {fmt: [] for fmt in mapping}
 
-    for fmt, d in mapping.items():
-
-        # -------- REAL (path assoluti) --------
-        for path in d["real"]:
-            full = path if os.path.isabs(path) else os.path.join(root, path)
-            if os.path.isdir(full):
-                real[fmt] += [
-                    os.path.join(full, x)
-                    for x in os.listdir(full)
-                    if os.path.isfile(os.path.join(full, x))
-                ]
-
-        # -------- RANDOM (relativi a root) --------
-        for path in d["rand"]:
-            full = path if os.path.isabs(path) else os.path.join(root, path)
-            if os.path.isdir(full):
-                rand[fmt] += [
-                    os.path.join(full, x)
-                    for x in os.listdir(full)
-                    if os.path.isfile(os.path.join(full, x))
-                ]
+    for fmt, paths in mapping.items():
+        real[fmt] = _collect_files(root, paths["real"], EXTS[fmt])
+        rand[fmt] = _collect_files(root, paths["rand"], EXTS[fmt])
 
     return real, rand
 
@@ -205,20 +197,17 @@ def apply_rules(vals, thr_fmt):
     decisions = {}
     for m in ["JSD", "TVD", "L1", "Cosine", "Entropy"]:
         if m not in thr_fmt:
-            # se non abbiamo soglia per quella metrica → la consideriamo passata
             decisions[m] = True
             continue
 
         T = thr_fmt[m]
 
         if m == "Cosine":
-            # alto è meglio
             decisions[m] = (vals[m] >= T)
         elif m == "Entropy" and isinstance(T, tuple):
             low, high = T
             decisions[m] = (low <= vals[m] <= high)
         else:
-            # metriche di distanza: basso è meglio
             decisions[m] = (vals[m] <= T)
 
     overall = all(decisions.values())
@@ -261,7 +250,6 @@ def process_format(fmt, thr_fmt, rows):
                 "Entropy":  float(row["entropy"]),
             }
         except ValueError:
-            # valori non parsabili → skip del file
             continue
 
         overall, decs = apply_rules(vals, thr_fmt)
@@ -285,7 +273,6 @@ def process_format(fmt, thr_fmt, rows):
         print(f"[{fmt}] ERRORE: real insufficienti nel TEST ({N_real})")
         return None
 
-    # === CONFUSION MATRIX ===
     TP = N_real - FN
     TN = N_rand - FP
 
@@ -321,7 +308,6 @@ def load_sigma_thresholds(path_csv):
   
     thr_by_fmt = {}
 
-    # mappa metrica -> prefisso di colonna nel CSV
     METRIC_TO_PREFIX = {
         "JSD": "JSD",
         "TVD": "TVD",
@@ -374,7 +360,6 @@ def apply_rules_sigma(vals, thr_fmt):
     """
     decisions = {}
 
-    # Distanze
     for m in ["JSD", "TVD", "L1"]:
         if m not in thr_fmt:
             decisions[m] = True
@@ -384,7 +369,6 @@ def apply_rules_sigma(vals, thr_fmt):
         T = clamp(mu + K_SIGMA * sd, *RANGES[m])
         decisions[m] = (vals[m] <= T)
 
-    # Cosine (similarità): lower bound = mu - 2σ
     if "Cosine" in thr_fmt:
         mu_c = thr_fmt["Cosine"]["mean"]
         sd_c = thr_fmt["Cosine"]["std"]
@@ -393,7 +377,6 @@ def apply_rules_sigma(vals, thr_fmt):
     else:
         decisions["Cosine"] = True
 
-    # Entropy: banda [mu - 2σ, mu + 2σ]
     if "Entropy" in thr_fmt:
         mu_e = thr_fmt["Entropy"]["mean"]
         sd_e = thr_fmt["Entropy"]["std"]
@@ -438,7 +421,6 @@ def process_format_sigma(fmt, thr_fmt, rows):
                 "Entropy":  float(row["entropy"]),
             }
         except ValueError:
-            # valori non parsabili → skip
             continue
 
         overall, decs = apply_rules_sigma(vals, thr_fmt)
@@ -498,7 +480,6 @@ def compute_centroid_for_format(fmt, ngram, buckets):
 
     centroid = np.mean(bfds, axis=0)
 
-    # normalizzazione (sommatoria = 1)
     s = centroid.sum()
     if s > 0:
         centroid = centroid / s
@@ -553,7 +534,7 @@ def write_scores_for_group(fmt, real_paths, rand_paths, centroid, writer, get_re
             fmt,
             path,
             cls,
-            fold_idx,         # nuova colonna: indice del fold
+            fold_idx,
             f"{j:.10f}",
             f"{t:.10f}",
             f"{l:.10f}",
@@ -657,7 +638,6 @@ def load_final_thresholds(path_csv):
             if fmt not in thr_by_fmt:
                 thr_by_fmt[fmt] = {}
 
-            # Entropy: banda [low, high]
             if mname == "Entropy":
                 low_str = row.get("thr_low", "")
                 high_str = row.get("thr_high", "")
@@ -700,7 +680,6 @@ def apply_rules_optimized(vals, thr_fmt):
     """
     decisions = {}
 
-    # distanze: basso è meglio → val <= T
     for m in ["JSD", "TVD", "L1"]:   
         if m not in thr_fmt:
             decisions[m] = True
@@ -708,14 +687,12 @@ def apply_rules_optimized(vals, thr_fmt):
         T = thr_fmt[m]
         decisions[m] = (vals[m] <= T)
 
-    # Cosine: alto è meglio → val >= T_cos
     if "Cosine" in thr_fmt:
         T_cos = thr_fmt["Cosine"]
         decisions["Cosine"] = (vals["Cosine"] >= T_cos)
     else:
         decisions["Cosine"] = True
 
-    # Entropy: banda [low, high]
     if "Entropy" in thr_fmt:
         low, high = thr_fmt["Entropy"]
         decisions["Entropy"] = (low <= vals["Entropy"] <= high)

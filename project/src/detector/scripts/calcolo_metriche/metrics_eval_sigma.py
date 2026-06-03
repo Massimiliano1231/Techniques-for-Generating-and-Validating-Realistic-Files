@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-import os
 import sys
 import argparse
+from pathlib import Path
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from config.constants import DEFAULT_VAR_CSV, DEFAULT_SCORES_CSV
-from io.io_utils import load_sigma_thresholds, load_test_rows_by_format, process_format_sigma
+from detector.config.constants import DEFAULT_VAR_CSV, DEFAULT_SCORES_CSV
+from detector.io.io_utils import load_sigma_thresholds, load_test_rows_by_format, process_format_sigma
 
 
 
@@ -34,10 +35,8 @@ def main():
 
     args = ap.parse_args()
 
-    # carica soglie (mean/std → μ±2σ)
     thr_all = load_sigma_thresholds(args.var_csv)
 
-    # carica metriche dallo scores_csv
     rows_by_fmt = load_test_rows_by_format(args.scores_csv)
 
     formats = sorted(rows_by_fmt.keys())
@@ -53,7 +52,6 @@ def main():
         if r:
             results.append(r)
 
-    # stampa sommario globale
     print("\n\n=== RISULTATI GLOBALI ===")
     print(f"{'fmt':<6} {'N_real':>7} {'FN':>5} {'FN%':>7}   {'N_rand':>7} {'FP':>5} {'FP%':>7}")
     for r in results:
@@ -62,7 +60,6 @@ def main():
             f"{r['N_rand']:7d} {r['FP']:5d} {100*r['FP_rate']:6.2f}%"
         )
 
-    # breakdown per metrica
     print("\n=== BREAKDOWN PER METRICA ===")
     for r in results:
         print(f"\n[{r['fmt'].upper()}]")
@@ -74,7 +71,6 @@ def main():
             fpp = (fpr / r["N_rand"] * 100) if r["N_rand"] else 0.0
             print(f"{m:<10} {fnc:9d}  {fnp:6.2f}%   {fpr:12d}  {fpp:6.2f}%")
 
-    # precisione per formato
     print("\n=== PRECISIONE PER FORMATO ===")
     print(f"{'fmt':<6} {'TP':>7} {'FP':>7} {'Precision%':>12}")
     for r in results:

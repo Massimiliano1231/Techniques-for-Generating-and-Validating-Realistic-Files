@@ -2,19 +2,18 @@
 import os
 import sys
 import argparse
-import numpy as np
 from tqdm import tqdm
 import time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.append(str(PROJECT_ROOT / "src" / "detector"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from data.datasets import get_format
-from config.constants import NGRAM, BUCKETS, DEFAULT_CENTROIDS_JSON, DEFAULT_THRESHOLDS_CSV
-from core.bfd_features import ngram_bfd_from_path
-from core.metrics import jsd, tvd, l1_distance, cosine_sim, entropy
-from io.io_utils import load_centroids, load_final_thresholds, apply_rules_optimized
+from detector.data.datasets import get_format
+from detector.config.constants import NGRAM, BUCKETS, DEFAULT_CENTROIDS_JSON, DEFAULT_THRESHOLDS_CSV
+from detector.core.bfd_features import ngram_bfd_from_path
+from detector.core.metrics import jsd, tvd, l1_distance, cosine_sim, entropy
+from detector.io.io_utils import load_centroids, load_final_thresholds, apply_rules_optimized
 
 
 
@@ -69,7 +68,6 @@ def main():
         print(f"Errore: {args.dataset} non è una cartella.")
         sys.exit(1)
 
-    # carica centroidi e soglie
     centroids = load_centroids(args.centroids)
     thr_all = load_final_thresholds(args.thr_csv)
 
@@ -85,7 +83,6 @@ def main():
 }
 
 
-    # raccogli tutti i file sotto dataset
     all_paths = []
     for root, _, files in os.walk(args.dataset):
         for name in files:
@@ -101,23 +98,18 @@ def main():
     for pth in tqdm(all_paths, desc="Valutazione file dataset"):
         fmt = get_format(pth)
         if fmt is None:
-            # estensione non supportata
             continue
 
         if fmt not in centroids:
-            # non abbiamo centroide per questo formato
             continue
         if fmt not in thr_all:
-            # non abbiamo soglie per questo formato
             continue
 
         centroid = centroids[fmt]
         thr_fmt = thr_all[fmt]
 
-        # BFD / n-gram del file
         bfd = ngram_bfd_from_path(pth, n=args.ngram, buckets=args.buckets)
 
-        # metriche rispetto al centroide
         vals = {
             "JSD":      jsd(bfd, centroid),
             "TVD":      tvd(bfd, centroid),

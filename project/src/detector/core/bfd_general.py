@@ -1,23 +1,9 @@
 #!/usr/bin/env python3
-# generic_texty_ngram.py
-#
-# Reader "quasi generico" text-vs-binary-aware:
-#   - head + tail
-#   - segmentazione in blocchi
-#   - filtro su ratio di caratteri stampabili / entropia locale
-#   - n-gram BFD sui blocchi accettati
-#
-# Uso esempio:
-#   python3 generic_texty_ngram.py --ngram 2 --buckets 65536 file1.pdf file2.docx ...
 
 import os
-import sys
-import math
-import argparse
 import numpy as np
 
 
-# ----------------- Utility: entropia e printable ratio ----------------- #
 
 def shannon_entropy_bytes(block: bytes) -> float:
     """
@@ -43,15 +29,12 @@ def printable_ratio(block: bytes) -> float:
     if not block:
         return 0.0
     arr = np.frombuffer(block, dtype=np.uint8)
-    # range 32-126
     printable_mask = (arr >= 32) & (arr <= 126)
-    # whitespace comuni
     whitespace_mask = (arr == 9) | (arr == 10) | (arr == 13)
     mask = printable_mask | whitespace_mask
     return float(mask.sum()) / float(len(arr))
 
 
-# ----------------- Reader quasi generico text-vs-binary ----------------- #
 
 def read_texty_structural_bytes(
     path: str,
@@ -103,7 +86,6 @@ def read_texty_structural_bytes(
     if not data:
         return b""
 
-    # Segmentazione in blocchi
     blocks = []
     L = len(data)
     for i in range(0, L, block_size):
@@ -115,20 +97,15 @@ def read_texty_structural_bytes(
             continue
         pr = printable_ratio(blk)
         H = shannon_entropy_bytes(blk)
-        # criterio "text-vs-binary": blocco strutturale se:
-        #   - abbastanza testuale, oppure
-        #   - non troppo entropico
         if pr >= min_printable_ratio or H <= max_entropy:
             kept.append(blk)
 
     if kept:
         return b"".join(kept)
     else:
-        # fallback: se il filtro elimina tutto, usa i dati originali
         return data
 
 
-# ----------------- N-gram BFD sui bytes filtrati ----------------- #
 
 def ngram_bfd_from_path_texty(
     path: str,
@@ -150,31 +127,26 @@ def ngram_bfd_from_path_texty(
 
     arr = np.frombuffer(data, dtype=np.uint8)
 
-    # 1-gram classico
     if n == 1:
         c = np.bincount(arr, minlength=256).astype(float)
         s = c.sum()
         return c / s if s > 0 else c
 
-    # n-gram
     if len(arr) < n:
         return np.zeros(buckets, dtype=float)
 
-    # caso n=2, buckets=65536 → esatto
     if n == 2 and buckets == 65536:
         idx = arr[:-1].astype(np.uint32) * 256 + arr[1:].astype(np.uint32)
         c = np.bincount(idx, minlength=65536).astype(float)
         s = c.sum()
         return c / s if s > 0 else c
 
-    # n>2 o buckets diversi → rolling hash
     B = int(buckets)
     L = len(arr) - n + 1
     idx = np.zeros(L, dtype=np.uint64)
     base = 257
     MOD = 2 ** 64
 
-    # primo valore
     val = 0
     for k in range(n):
         val = (val * base + int(arr[k])) % MOD

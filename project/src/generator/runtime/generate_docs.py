@@ -5,12 +5,12 @@ import sys
 import argparse
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-sys.path.append(str(PROJECT_ROOT / "src" / "generator"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from io.io_utils import ensure_dir
-from markov.markov_loader import load_markov_matrix, load_docx_template
-from markov.markov_generator import generate_bytes_markov
-from io.writer_file import write_docx_file
+from generator.io.io_utils import ensure_dir
+from generator.markov.markov_loader import load_markov_matrix, load_docx_template
+from generator.markov.markov_generator import generate_bytes_markov
+from generator.io.writer_file import write_docx_file
 
 
 MARKOV_PATH = PROJECT_ROOT / "data" / "generator" / "matrices" / "P_docx.npy"

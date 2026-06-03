@@ -1,0 +1,181 @@
+ISTRUZIONI DI ESECUZIONE DEL PROGETTO
+=====================================
+
+Questo file spiega cosa serve e in che ordine eseguire gli script.
+Tutti i comandi sotto assumono di partire dalla root della repository e poi
+entrare nella cartella project.
+
+
+1. REQUISITI
+------------
+
+Serve Python 3.10 o superiore.
+
+Da una clone pulita:
+
+    cd project
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install -e .
+
+Se devi usare anche lo script di analisi con Magika:
+
+    python -m pip install -e ".[analysis]"
+
+
+2. STRUTTURA DATI RICHIESTA
+---------------------------
+
+I dataset non sono inclusi nella repository. Devono essere messi in:
+
+    data/detector/datasets/
+
+La struttura attesa e':
+
+    data/detector/datasets/pdf data/PDF-total/
+    data/detector/datasets/pdf data/pdf_ranflood/
+
+    data/detector/datasets/txt data/TXT-total/
+    data/detector/datasets/txt data/txt_ranflood/
+
+    data/detector/datasets/jpg data/JPG-total/
+    data/detector/datasets/jpg data/jpg_ranflood/
+
+    data/detector/datasets/docx data/DOCX-total/
+    data/detector/datasets/docx data/docx_ranflood/
+
+I file reali vanno nelle cartelle *-total.
+I file random usati per il confronto vanno nelle cartelle *_ranflood.
+
+I percorsi sono relativi a project.
+
+
+3. GENERATOR: CREAZIONE DELLE MATRICI MARKOV
+--------------------------------------------
+
+Prima di generare file sintetici bisogna costruire le matrici Markov dai
+dataset reali.
+
+Eseguire nell'ordine:
+
+    python -m generator.offline.build_txt_markov
+    python -m generator.offline.build_pdf_markov
+    python -m generator.offline.build_docx_markov
+    python -m generator.offline.build_jpg_markov
+
+Questi script scrivono i modelli in:
+
+    data/generator/matrices/
+
+Poi bisogna costruire le alias tables, usate dalla generazione veloce:
+
+    python -m generator.markov.build_alias_tables
+    python -m generator.markov.build_alias_jpg
+
+
+4. GENERATOR: GENERAZIONE DEI FILE SINTETICI
+--------------------------------------------
+
+Dopo aver creato matrici e alias tables, si puo' generare il dataset sintetico:
+
+    python -m generator.runtime.generator_finale --num_files 1000
+
+Output:
+
+    data/generator/generated_files/all_generated/
+
+Puoi cambiare il numero di file:
+
+    python -m generator.runtime.generator_finale --num_files 10000
+
+Puoi anche cambiare la dimensione massima:
+
+    python -m generator.runtime.generator_finale --num_files 1000 --max_len 4096
+
+
+5. DETECTOR: CREAZIONE SPLIT K-FOLD
+-----------------------------------
+
+Prima si crea lo split K-fold dei dataset reali e random:
+
+    python -m detector.data.kfold_split --out data/detector/derived/vari_json/json_split_dataset/kfold_split_3.json
+
+Di default vengono creati 3 fold.
+Per cambiare K:
+
+    python -m detector.data.kfold_split --k_folds 5 --out data/detector/derived/vari_json/json_split_dataset/kfold_split_5.json
+
+
+6. DETECTOR: CALCOLO DEGLI SCORE PER OGNI FOLD
+----------------------------------------------
+
+Usando lo split K-fold, si calcolano gli score rispetto ai centroidi calcolati
+sui file reali di training:
+
+    python -m detector.scripts.generazione_soglie.generate_scores_kfold --out data/detector/csv_utils/csv_train_e_test_tutti_i_fold
+
+Output:
+
+    data/detector/csv_utils/csv_train_e_test_tutti_i_fold/file_scores_centroid_train_fold0.csv
+    data/detector/csv_utils/csv_train_e_test_tutti_i_fold/file_scores_centroid_test_fold0.csv
+    ...
+
+
+7. DETECTOR: OTTIMIZZAZIONE SOGLIE PER FOLD
+-------------------------------------------
+
+Usando gli score del training set, si ottimizzano le soglie:
+
+    python -m detector.scripts.generazione_soglie.optimize_thresholds_kfold --scores_dir data/detector/csv_utils/csv_train_e_test_tutti_i_fold --out_dir data/detector/csv_utils/soglie_ottimizzate_per_ogni_fold
+
+Output:
+
+    data/detector/csv_utils/soglie_ottimizzate_per_ogni_fold/thresholds_all_formats_train_fold0.csv
+    data/detector/csv_utils/soglie_ottimizzate_per_ogni_fold/thresholds_all_formats_train_fold1.csv
+    data/detector/csv_utils/soglie_ottimizzate_per_ogni_fold/thresholds_all_formats_train_fold2.csv
+
+
+8. DETECTOR: SOGLIE FINALI
+--------------------------
+
+Dopo aver creato le soglie per i fold, si calcola la media finale:
+
+    python -m detector.thresholds.compute_final_thresholds --inputs data/detector/csv_utils/soglie_ottimizzate_per_ogni_fold/thresholds_all_formats_train_fold0.csv data/detector/csv_utils/soglie_ottimizzate_per_ogni_fold/thresholds_all_formats_train_fold1.csv data/detector/csv_utils/soglie_ottimizzate_per_ogni_fold/thresholds_all_formats_train_fold2.csv --out_csv data/detector/derived/vari_csv/csv_soglie_finali/final_thresholds_mean.csv --out_json data/detector/derived/vari_json/soglie_finali/final_thresholds_mean.json
+
+
+9. DETECTOR: CENTROIDI FINALI
+-----------------------------
+
+Per valutare nuovi file servono anche i centroidi finali calcolati sui file
+reali:
+
+    python -m detector.core.compute_centroids
+
+Output:
+
+    data/detector/derived/vari_json/centroidi_ogni_formato/centroids.json
+
+
+10. DETECTOR: VALUTAZIONE DI UN DATASET
+---------------------------------------
+
+Per valutare i file generati dal generator:
+
+    python -m detector.scripts.detector.check_dataset_with_optimized_model --dataset data/generator/generated_files/all_generated
+
+Lo script usa di default:
+
+    data/detector/derived/vari_json/centroidi_ogni_formato/centroids.json
+    data/detector/derived/vari_csv/csv_soglie_finali/final_thresholds_mean.csv
+
+Per stampare anche i singoli file:
+
+    python -m detector.scripts.detector.check_dataset_with_optimized_model --dataset data/generator/generated_files/all_generated --print_files
+
+
+11. NOTE
+-------------------
+
+- Se mancano i dataset, gli script partono ma non possono produrre risultati utili.
+- Se mancano le matrici Markov, il generator runtime non puo' generare file.
+- Se mancano centroidi e soglie finali, il detector finale non puo' valutare un dataset.

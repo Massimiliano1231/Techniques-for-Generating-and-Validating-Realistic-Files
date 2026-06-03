@@ -1,14 +1,11 @@
 import numpy as np
+import argparse
 from pathlib import Path
 
-# ==========================================================
-# PATH
-# ==========================================================
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BASE_DIR = PROJECT_ROOT / "data" / "generator" / "matrices"
 
 ALIAS_DIR = BASE_DIR / "matrici_alias"
-ALIAS_DIR.mkdir(parents=True, exist_ok=True)
 
 MARKOV_PATHS = {
     "txt":  BASE_DIR / "P_txt.npy",
@@ -16,9 +13,14 @@ MARKOV_PATHS = {
     "docx": BASE_DIR / "P_docx.npy",
 }
 
-# ==========================================================
-# ALIAS METHOD (OFFLINE)
-# ==========================================================
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Build alias tables for TXT, PDF, and DOCX Markov matrices.")
+    parser.add_argument("--matrices_dir", default=str(BASE_DIR))
+    parser.add_argument("--out_dir", default=str(ALIAS_DIR))
+    return parser.parse_args()
+
+
 def build_alias_table(p):
     """
     p: array di probabilità (somma = 1), shape (256,)
@@ -76,11 +78,18 @@ def build_alias_markov(P):
     return prob, alias
 
 
-# ==========================================================
-# MAIN
-# ==========================================================
 def main():
-    for fmt, path in MARKOV_PATHS.items():
+    args = parse_args()
+    matrices_dir = Path(args.matrices_dir)
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    markov_paths = {
+        "txt": matrices_dir / "P_txt.npy",
+        "pdf": matrices_dir / "P_pdf.npy",
+        "docx": matrices_dir / "P_docx.npy",
+    }
+
+    for fmt, path in markov_paths.items():
         print(f"[+] Building alias tables for {fmt.upper()}")
 
         P = np.load(path)
@@ -89,8 +98,8 @@ def main():
 
         prob, alias = build_alias_markov(P)
 
-        out_prob  = ALIAS_DIR / f"P_{fmt}_alias_prob.npy"
-        out_alias = ALIAS_DIR / f"P_{fmt}_alias_idx.npy"
+        out_prob  = out_dir / f"P_{fmt}_alias_prob.npy"
+        out_alias = out_dir / f"P_{fmt}_alias_idx.npy"
 
         np.save(out_prob, prob)
         np.save(out_alias, alias)

@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 import os
 import sys
-import csv
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.append(str(PROJECT_ROOT / "src"))
-sys.path.append(str(PROJECT_ROOT / "src" / "detector"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-import numpy as np
 from detector.config.constants import DEFAULT_THRESH_DIR, DEFAULT_SCORES_DIR
-from detector.io.io_utils import load_optimized_thresholds, load_test_rows_by_format, process_format, apply_rules
+from detector.io.io_utils import load_optimized_thresholds, load_test_rows_by_format, process_format
 
 
 
@@ -43,7 +40,6 @@ def main():
 
     formats = ["jpg", "docx", "pdf", "txt"]
 
-    # Per aggregare su tutti i fold
     agg_by_fmt = {}
     for fmt in formats:
         agg_by_fmt[fmt] = {
@@ -57,7 +53,6 @@ def main():
 
     print("\n=== START K-FOLD EVALUATION (usando soglie per ogni fold) ===\n")
 
-    # Risultati per fold
     results_per_fold = {}
 
     for fold_idx in range(args.k_folds):
@@ -88,12 +83,10 @@ def main():
         for fmt in formats:
             print(f"\n[{fmt.upper()}] (fold {fold_idx})")
             rows = rows_by_fmt.get(fmt, [])
-            r = process_format(fmt, thr_all.get(fmt, {}), rows) #qui applica le soglie e calcola FN/FP
-            #torna dizionario con risultati
+            r = process_format(fmt, thr_all.get(fmt, {}), rows)
             if r:
                 fold_results.append(r)
 
-                # aggiorna aggregato
                 agg = agg_by_fmt[fmt]
                 agg["N_real"] += r["N_real"]
                 agg["N_rand"] += r["N_rand"]
@@ -105,19 +98,17 @@ def main():
 
         results_per_fold[fold_idx] = fold_results
 
-        # stampa sommario fold
         print("\nRISULTATI FOLD (per formato):")
         print(f"{'fmt':<6} {'N_real':>7} {'FN':>5} {'FN%':>7}   {'N_rand':>7} {'FP':>5} {'FP%':>7}")
         for r in fold_results:
             print(
                 f"{r['fmt']:<6} {r['N_real']:7d} {r['FN']:5d} {100*r['FN_rate']:6.2f}%   "
-                f"{r['N_rand']:7d} {r['FP']:5d} {100*r['FP_rate']:6.2f}%" #6.2f = float con 2 decimali e 6 spazi totali
+                f"{r['N_rand']:7d} {r['FP']:5d} {100*r['FP_rate']:6.2f}%"
             )
 
-    # --- AGGREGATI SU TUTTI I FOLD ---
 
     print("\n\n=== RISULTATI GLOBALI SU TUTTI I FOLD ===")
-    print(f"{'fmt':<6} {'N_real':>7} {'FN':>5} {'FN%':>7}   {'N_rand':>7} {'FP':>5} {'FP%':>7}") #es: <6 : orizzontale 6 caratteri
+    print(f"{'fmt':<6} {'N_real':>7} {'FN':>5} {'FN%':>7}   {'N_rand':>7} {'FP':>5} {'FP%':>7}")
 
     for fmt in formats:
         agg = agg_by_fmt[fmt]
@@ -164,7 +155,6 @@ def main():
         if N_real == 0 and N_rand == 0:
             continue
 
-        # Confusion matrix aggregata
         TP = N_real - FN
         TN = N_rand - FP
 

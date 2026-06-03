@@ -5,12 +5,12 @@ import sys
 import argparse
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-sys.path.append(str(PROJECT_ROOT / "src" / "generator"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from io.io_utils import ensure_dir
-from markov.markov_loader import load_markov_matrix
-from markov.markov_generator import generate_bytes_markov
-from io.writer_file import write_txt_file
+from generator.io.io_utils import ensure_dir
+from generator.markov.markov_loader import load_markov_matrix
+from generator.markov.markov_generator import generate_bytes_markov
+from generator.io.writer_file import write_txt_file
 
 
 
@@ -20,8 +20,8 @@ OUTPUT_DIR = PROJECT_ROOT / "data" / "generator" / "generated_files" / "txt_gene
 FILE_LENGTH = 2048  
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Generate synthetic DOCX files using a Markov model")
-    parser.add_argument("--num_files", type=int, default=1000, help="Number of DOCX files to generate")
+    parser = argparse.ArgumentParser(description="Generate synthetic TXT files using a Markov model")
+    parser.add_argument("--num_files", type=int, default=1000, help="Number of TXT files to generate")
     return parser.parse_args()
 
 

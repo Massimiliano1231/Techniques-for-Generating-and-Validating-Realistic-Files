@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-import os, sys, csv
-import numpy as np
+import sys
+from pathlib import Path
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from config.constants import MIN_REAL, METRIC_COL_TO_NAME, CSV_THRESHOLDS_OPT, CSV_SCORES_TEST
-from io.io_utils import load_optimized_thresholds, apply_rules, load_test_rows_by_format, process_format
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
+from detector.config.constants import CSV_THRESHOLDS_OPT, CSV_SCORES_TEST
+from detector.io.io_utils import load_optimized_thresholds, load_test_rows_by_format, process_format
 
 
 
@@ -12,10 +13,8 @@ def main():
     formats = ["jpg", "docx", "pdf", "txt"]
     results = []
 
-    # carica soglie ottimizzate sul TRAIN
     thr_all = load_optimized_thresholds(CSV_THRESHOLDS_OPT)
 
-    # carica metriche del TEST per formato
     rows_by_fmt = load_test_rows_by_format(CSV_SCORES_TEST)
 
     print("\n=== START EVALUATION ON TEST (usando soglie del TRAIN) ===\n")
@@ -26,7 +25,6 @@ def main():
         if r:
             results.append(r)
 
-    # stampa sommario
     print("\n\n=== RISULTATI GLOBALI (TEST) ===")
     print(f"{'fmt':<6} {'N_real':>7} {'FN':>5} {'FN%':>7}   {'N_rand':>7} {'FP':>5} {'FP%':>7}")
     for r in results:
@@ -37,7 +35,6 @@ def main():
 
 
 
-    # breakdown per metrica
     print("\n=== BREAKDOWN PER METRICA (TEST) ===")
     for r in results:
         print(f"\n[{r['fmt'].upper()}]")
@@ -50,7 +47,6 @@ def main():
             print(f"{m:<10} {fnc:9d}  {fnp:6.2f}%   {fpr:12d}  {fpp:6.2f}%")
 
 
-        # === CONFUSION MATRIX PER FORMATO ===
     print("\n=== CONFUSION MATRIX (TEST) ===")
     for r in results:
         cm = r["confusion_matrix"]

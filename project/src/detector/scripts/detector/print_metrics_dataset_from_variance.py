@@ -5,14 +5,16 @@ import csv
 import argparse
 import numpy as np
 from tqdm import tqdm
+from pathlib import Path
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from data.datasets import get_format, DATASETS
-from config.constants import NGRAM, BUCKETS, RANGES, EXTS, DEFAULT_ROOT, DEFAULT_CSV
-from io.io_utils import list_files, load_thresholds, clamp
-from core.bfd_features import ngram_bfd_from_path
-from core.metrics import jsd, tvd, l1_distance, cosine_sim, entropy
+from detector.data.datasets import get_format, DATASETS
+from detector.config.constants import NGRAM, BUCKETS, RANGES, EXTS, DEFAULT_ROOT, DEFAULT_CSV
+from detector.io.io_utils import list_files, load_thresholds, clamp
+from detector.core.bfd_features import ngram_bfd_from_path
+from detector.core.metrics import jsd, tvd, l1_distance, cosine_sim, entropy
 
 
 
@@ -29,9 +31,6 @@ def main():
     args = ap.parse_args()
 
 
-    # -----------------------------------------------------------
-    # 1) Raccogli file del dataset
-    # -----------------------------------------------------------
     all_paths = []
     for root, _, files in os.walk(args.dataset):
         for f in files:
@@ -46,17 +45,11 @@ def main():
         print("Formato non riconosciuto.")
         sys.exit(1)
 
-    # -----------------------------------------------------------
-    # 2) Carica le soglie μ e σ dal CSV
-    # -----------------------------------------------------------
     thr = load_thresholds(args.csv, fmt)
     if thr is None:
         print(f"Soglie non trovate per formato '{fmt}'.")
         sys.exit(1)
 
-    # -----------------------------------------------------------
-    # 3) Calcolo della FIRMA MEDIA reale
-    # -----------------------------------------------------------
     real_dir = DATASETS[fmt]["real"]
     real_files = list_files(real_dir, EXTS[fmt])
 
@@ -71,9 +64,6 @@ def main():
 
     mean_bfd = np.mean(bfds_real, axis=0)
 
-    # -----------------------------------------------------------
-    # 4) Analisi del dataset con soglie μ±2σ
-    # -----------------------------------------------------------
     plausible = 0
     not_plausible = 0
 
@@ -95,7 +85,6 @@ def main():
         if bfd is None:
             continue
 
-        # metriche rispetto al mean_bfd
         vals = {
             "JSD":      jsd(bfd, mean_bfd),
             "TVD":      tvd(bfd, mean_bfd),
@@ -104,11 +93,9 @@ def main():
             "Entropy":  entropy(bfd),
         }
 
-        # --- regole μ ± 2σ ---
         K = 3.0
         ok = True
 
-        # distanze: val ≤ μ + 2σ
         for m in ["JSD", "TVD", "L1"]:
             mu = thr[m]["mean"]
             sd = thr[m]["std"]
@@ -116,14 +103,12 @@ def main():
             if not (vals[m] <= T):
                 ok = False
 
-        # cosine: val ≥ μ - 2σ
         mu_c = thr["Cosine"]["mean"]
         sd_c = thr["Cosine"]["std"]
         T_cos = clamp(mu_c - K*sd_c, *RANGES["Cosine"])
         if not (vals["Cosine"] >= T_cos):
             ok = False
 
-        # entropy: μ-2σ ≤ val ≤ μ+2σ
         mu_e = thr["Entropy"]["mean"]
         sd_e = thr["Entropy"]["std"]
         E_low  = clamp(mu_e - K*sd_e, *RANGES["Entropy"])
@@ -145,9 +130,6 @@ def main():
     if fout:
         fout.close()
 
-    # -----------------------------------------------------------
-    # RISULTATO
-    # -----------------------------------------------------------
     total = plausible + not_plausible
     print("\n=== RISULTATI ===")
     print(f"Formato:           {fmt}")

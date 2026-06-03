@@ -1,8 +1,8 @@
-import os
 import random
 import time
 import numpy as np
 from pathlib import Path
+from numba import njit
 
 
 SIGNATURES = {
@@ -30,9 +30,7 @@ JPG_MIN,  JPG_MAX  = 2048,   4096
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 OUT_DIR = PROJECT_ROOT / "data" / "generator" / "generated_files" / "flooding_completamente_casuale"
-OUT_DIR.mkdir(exist_ok=True)
 
-from numba import njit
 
 @njit
 def generate_bytes_random_numba(length):
@@ -44,10 +42,8 @@ def generate_bytes_random_numba(length):
 def generate_bytes_random(length) -> bytes:
     return generate_bytes_random_numba(length).tobytes()
 
-# =========================
-# RANDOM FLOODING
-# =========================
 def random_flood():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     start = time.perf_counter()
 
     for i in range(NUM_FILES):

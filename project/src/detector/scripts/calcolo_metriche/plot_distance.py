@@ -3,11 +3,11 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-sys.path.append(str(PROJECT_ROOT / "src" / "detector"))
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 
-from config.constants import CSV_PATH, OUT_METRICHE, OUT_ENTROPIA, METRICS
-from plotting.plot_utils import load_csv, ensure_dir, plot_metric_bars, plot_entropy_by_format
+from detector.config.constants import CSV_PATH, OUT_METRICHE, OUT_ENTROPIA, METRICS
+from detector.plotting.plot_utils import load_csv, ensure_dir, plot_metric_bars, plot_entropy_by_format
 
 
 

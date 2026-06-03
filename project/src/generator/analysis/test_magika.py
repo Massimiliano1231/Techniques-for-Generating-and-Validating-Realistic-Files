@@ -26,7 +26,7 @@ def unify_magika_label(desc: str) -> str | None:
     if "text" in d or "csv" in d:
         return "txt"
 
-    return None  # altri formati
+    return None
 
 def main():
     parser = argparse.ArgumentParser()
@@ -51,18 +51,16 @@ def main():
     start_time = time.perf_counter()
 
     for f in files:
-        # -------- estensioni --------
         ext = f.suffix.lower()
         for fmt, exts in EXTENSIONS.items():
             if ext in exts:
                 count_ext[fmt] += 1
                 break
 
-        # -------- Magika --------
         result = m.identify_path(f)
 
         if not result.ok:
-            continue  # caso raro, ignoriamo
+            continue
 
         label = unify_magika_label(result.output.description)
 
@@ -73,9 +71,6 @@ def main():
         else:
             count_other += 1
 
-    # =========================
-    # STAMPA (come la vuoi tu)
-    # =========================
 
     end_time = time.perf_counter()
     elapsed = end_time - start_time

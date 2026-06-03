@@ -1,20 +1,22 @@
 import numpy as np
+import argparse
 from pathlib import Path
 
-# ============================================================
-# PATHS
-# ============================================================
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BASE_DIR = PROJECT_ROOT / "data" / "generator" / "matrices"
 
 OUT_DIR = BASE_DIR / "matrici_alias"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 P_SEGMENTS_PATH = BASE_DIR / "P_jpg_segments.npy"
 
-# ============================================================
-# ALIAS METHOD HELPERS
-# ============================================================
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Build alias tables for JPG segment Markov models.")
+    parser.add_argument("--matrices_dir", default=str(BASE_DIR))
+    parser.add_argument("--out_dir", default=str(OUT_DIR))
+    return parser.parse_args()
+
+
 def build_alias_table(p):
     """
     Costruisce alias table per una distribuzione discreta p (len=256)
@@ -82,27 +84,25 @@ def dict_to_matrix(P_dict):
 
     return M
 
-# ============================================================
-# MAIN
-# ============================================================
 def main():
+    args = parse_args()
+    matrices_dir = Path(args.matrices_dir)
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
     print("[+] Loading JPG segment Markov models")
-    P_segments_raw = np.load(P_SEGMENTS_PATH, allow_pickle=True).item()
+    p_segments_raw = np.load(matrices_dir / "P_jpg_segments.npy", allow_pickle=True).item()
 
-    # ---- marker indexing (NO DICT A RUNTIME) ----
-    markers = sorted(P_segments_raw.keys())
+    markers = sorted(p_segments_raw.keys())
     marker_to_idx = {m: i for i, m in enumerate(markers)}
     idx_to_marker = np.array(markers, dtype=np.uint8)
 
     num_markers = len(markers)
     print(f"[+] Found {num_markers} JPG markers")
 
-    # ---- allocate PURE numpy arrays ----
     alias_prob = np.zeros((num_markers, 256, 256), dtype=np.float32)
     alias_idx  = np.zeros((num_markers, 256, 256), dtype=np.uint8)
 
-    # ---- build alias tables ----
-    for marker, P_dict in P_segments_raw.items():
+    for marker, P_dict in p_segments_raw.items():
         mi = marker_to_idx[marker]
         print(f"    marker 0x{marker:02X}")
 
@@ -112,13 +112,11 @@ def main():
         alias_prob[mi] = prob
         alias_idx[mi]  = idx
 
-    # ---- save EVERYTHING as numeric arrays ----
-    np.save(OUT_DIR / "P_jpg_segments_alias_prob.npy", alias_prob)
-    np.save(OUT_DIR / "P_jpg_segments_alias_idx.npy",  alias_idx)
-    np.save(OUT_DIR / "P_jpg_segments_marker_map.npy", idx_to_marker)
+    np.save(out_dir / "P_jpg_segments_alias_prob.npy", alias_prob)
+    np.save(out_dir / "P_jpg_segments_alias_idx.npy",  alias_idx)
+    np.save(out_dir / "P_jpg_segments_marker_map.npy", idx_to_marker)
 
     print("[+] JPG alias tables saved correctly")
 
-# ============================================================
 if __name__ == "__main__":
     main()

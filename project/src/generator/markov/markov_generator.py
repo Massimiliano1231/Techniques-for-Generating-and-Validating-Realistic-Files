@@ -1,17 +1,18 @@
 from numba import njit
 import numpy as np
 
+
 @njit
-def sample_alias(prob_row, alias_row):
+def _sample_alias(prob_row, alias_row):
     i = np.random.randint(256)
     r = np.random.random()
     if r < prob_row[i]:
         return i
-    else:
-        return alias_row[i]
+    return alias_row[i]
+
 
 @njit
-def generate_bytes_markov_alias_numba(
+def _generate_bytes_markov_alias(
     alias_prob,
     alias_idx,
     length,
@@ -26,36 +27,14 @@ def generate_bytes_markov_alias_numba(
     out[0] = y
 
     for i in range(1, length):
-        y = sample_alias(alias_prob[y], alias_idx[y])
+        y = _sample_alias(alias_prob[y], alias_idx[y])
         out[i] = y
 
     return out
 
-def generate_bytes_markov(
-    alias_prob,
-    alias_idx,
-    length,
-    start_byte=None
-) -> bytes:
-    sb = -1 if start_byte is None else start_byte
-    arr = generate_bytes_markov_alias_numba(
-        alias_prob,
-        alias_idx,
-        length,
-        sb
-    )
-    return arr.tobytes()
-
-
-
-
-
-"""
-import numpy as np
-from numba import njit
 
 @njit
-def generate_bytes_markov_numba(P, length, start_byte=-1):
+def _generate_bytes_markov_matrix(P, length, start_byte=-1):
     if start_byte < 0:
         y = np.random.randint(256)
     else:
@@ -77,35 +56,27 @@ def generate_bytes_markov_numba(P, length, start_byte=-1):
     return out
 
 
-def generate_bytes_markov(P, length, start_byte=None) -> bytes:
-    sb = -1 if start_byte is None else start_byte
-    arr = generate_bytes_markov_numba(P, length, sb)
-    return arr.tobytes()
-
-
-
-
-
 def generate_bytes_markov(
-    P: np.ndarray,
-    length: int,
+    model: np.ndarray | None = None,
+    alias_idx: np.ndarray | int | None = None,
+    length: int | None = None,
+    *,
+    P: np.ndarray | None = None,
     start_byte: int | None = None
 ) -> bytes:
- 
+    if P is not None:
+        model = P
+    if length is None and isinstance(alias_idx, (int, np.integer)):
+        length = int(alias_idx)
+        alias_idx = None
+    if model is None or length is None:
+        raise TypeError("generate_bytes_markov requires a model and a length")
+    if length <= 0:
+        return b""
 
-    if start_byte is None:
-        y = np.random.randint(0, 256)
+    sb = -1 if start_byte is None else start_byte
+    if alias_idx is None:
+        arr = _generate_bytes_markov_matrix(model, length, sb)
     else:
-        y = start_byte
-
-    out = bytearray()
-    out.append(y)
-
-    for _ in range(length - 1):
-        probs = P[y]
-        x = np.random.choice(256, p=probs)
-        out.append(x)
-        y = x
-
-    return bytes(out)
-"""
+        arr = _generate_bytes_markov_alias(model, alias_idx, length, sb)
+    return arr.tobytes()
