@@ -1,15 +1,23 @@
-# Data Directory
+# Cartella Data
 
-This directory is intentionally left without datasets, generated files, and model matrices.
+Questa cartella non contiene dataset, file generati, CSV intermedi o matrici
+Markov, perche' questi file possono essere grandi o non distribuibili.
 
-Expected local layout:
+L'unica cartella che bisogna preparare manualmente prima di eseguire la pipeline e':
 
 ```text
 project/data/detector/datasets/
-project/data/detector/derived/
-project/data/detector/csv_utils/
-project/data/generator/generated_files/
-project/data/generator/matrices/
 ```
 
-The code builds paths relative to `project/`, so the repository can be cloned anywhere as long as this layout is recreated.
+con questa struttura:
+
+```text
+project/data/detector/datasets/pdf data/PDF-total/
+project/data/detector/datasets/pdf data/pdf_ranflood/
+project/data/detector/datasets/txt data/TXT-total/
+project/data/detector/datasets/txt data/txt_ranflood/
+project/data/detector/datasets/jpg data/JPG-total/
+project/data/detector/datasets/jpg data/jpg_ranflood/
+project/data/detector/datasets/docx data/DOCX-total/
+project/data/detector/datasets/docx data/docx_ranflood/
+```
